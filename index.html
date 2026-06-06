@@ -811,10 +811,10 @@
           <label>
             ゲーム形式:
             <select id="gameMode" onchange="updateGameMode()">
-              <option value="1-15">1ゲームマッチ (15点)</option>
+              <option value="1-15" selected>1ゲームマッチ (15点)</option>
               <option value="1">1ゲームマッチ (21点)</option>
               <option value="3-15">3ゲームマッチ (15点)</option>
-              <option value="3" selected>3ゲームマッチ (21点)</option>
+              <option value="3">3ゲームマッチ (21点)</option>
             </select>
           </label>
           <label>
@@ -1016,8 +1016,8 @@ let state = {
   setsWon: { a: 0, b: 0 },
   sets: [],          // [{a, b}]
   service: 'a',      // who serves
-  maxSets: 3,
-  pointsToWin: 21,
+  maxSets: 1,
+  pointsToWin: 15,
   deuceEnabled: true,
   matchOver: false
 };
