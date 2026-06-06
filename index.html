@@ -1361,7 +1361,8 @@ function shuffle(arr) {
 /* ============================================================
    COURT DRAW
    ============================================================ */
-let drawState = { mode: 'singles', players: 8, courts: 2 };
+// benchHistory[i] = 待機回数カウント（直近2回待機した人は >0）
+let drawState = { mode: 'singles', players: 8, courts: 2, benchHistory: {} };
 
 function setMode(m) {
   drawState.mode = m;
@@ -1377,15 +1378,24 @@ function changeVal(key, delta) {
     drawState.courts = Math.max(1, Math.min(8, drawState.courts + delta));
     document.getElementById('courtCount').textContent = drawState.courts;
   }
+  // 人数・コート数が変わったら履歴リセット
+  drawState.benchHistory = {};
 }
 
 function generateCourtDraw() {
   const { mode, players, courts } = drawState;
-  const perCourt = mode === 'doubles' ? 4 : 2; // players per court
+  const perCourt = mode === 'doubles' ? 4 : 2;
   const canFit = courts * perCourt;
+  const all = [...Array(players)].map((_, i) => i + 1);
 
-  // shuffle all player numbers
-  const nums = shuffle([...Array(players)].map((_, i) => i + 1));
+  // 直近2回以内に待機だった人（優先してコートへ）
+  const priority = shuffle(all.filter(n => (drawState.benchHistory[n] || 0) > 0));
+  const others   = shuffle(all.filter(n => (drawState.benchHistory[n] || 0) === 0));
+
+  // 優先組を先頭に並べ、コート定員を超えた分がベンチになるよう結合
+  // ただし優先組がコート定員より多い場合は全員入れるためotherでパディング不要
+  const ordered = [...priority, ...others];
+  const nums = ordered; // 先頭 canFit 人がコート、残りがベンチ
 
   // assign to courts
   const courtPlayers = [];
@@ -1445,6 +1455,18 @@ function generateCourtDraw() {
   }
 
   el.innerHTML = html;
+
+  // 履歴更新：コートに入った人はカウントを減らし、待機になった人は2にセット
+  const courtSet = new Set(nums.slice(0, canFit));
+  all.forEach(n => {
+    if (courtSet.has(n)) {
+      // コートに入ったので待機カウントを1減らす（0未満にはしない）
+      drawState.benchHistory[n] = Math.max(0, (drawState.benchHistory[n] || 0) - 1);
+    } else {
+      // 待機になったので2回保護
+      drawState.benchHistory[n] = 2;
+    }
+  });
 }
 
 /* ============================================================
