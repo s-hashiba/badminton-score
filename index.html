@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>バドミントン スコアボード</title>
+  <meta name="description" content="バドミントンのスコアを簡単に記録できるWebアプリ。乱数表機能付き。">
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --primary-dark: #1557b0;
+      --secondary: #e53935;
+      --secondary-dark: #b71c1c;
+      --bg: #0d1b2a;
+      --card: #1b2e42;
+      --card2: #223449;
+      --text: #f0f4f8;
+      --text-muted: #8899aa;
+      --green: #00c853;
+      --orange: #ff6d00;
+      --border: #2a3f57;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ===== HEADER ===== */
+    header {
+      background: var(--card);
+      border-bottom: 2px solid var(--primary);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    header h1 {
+      font-size: clamp(1rem, 4vw, 1.4rem);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    header h1 span { font-size: 1.4em; }
+
+    nav { display: flex; gap: 6px; }
+    nav button {
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    nav button.active, nav button:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    /* ===== AD BANNER ===== */
+    .ad-banner {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      padding: 6px;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ad-banner ins, .ad-placeholder {
+      display: block;
+      width: 100%;
+    }
+    .ad-placeholder {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      padding: 10px;
+      border: 1px dashed var(--border);
+      border-radius: 4px;
+    }
+
+    /* ===== MAIN ===== */
+    main { max-width: 900px; margin: 0 auto; padding: 16px; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ===== SCORE PAGE ===== */
+    .game-info {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .game-info select, .game-info input {
+      background: var(--card2);
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .game-info label { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+
+    /* set display */
+    .sets-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .set-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .set-dot.active { border-color: var(--primary); background: var(--primary); }
+    .set-dot.won-a { background: var(--primary); border-color: var(--primary); }
+    .set-dot.won-b { background: var(--secondary); border-color: var(--secondary); }
+
+    /* scoreboard */
+    .scoreboard {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+
+    .team-names {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 8px;
+    }
+    .team-name-input {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid var(--border);
+      color: var(--text);
+      font-size: clamp(1rem, 3.5vw, 1.25rem);
+      font-weight: 700;
+      text-align: center;
+      width: 100%;
+      padding: 4px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .team-name-input:focus { border-bottom-color: var(--primary); }
+    .team-name-input.b { text-align: center; }
+    .vs-text {
+      color: var(--text-muted);
+      font-size: 1rem;
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* score row */
+    .score-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .score-side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .score-display {
+      font-size: clamp(4rem, 18vw, 7rem);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      cursor: default;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+      transition: transform 0.1s, color 0.3s;
+      user-select: none;
+    }
+    .score-display.bump { transform: scale(1.15); }
+    .score-display.a { color: #60aaff; }
+    .score-display.b { color: #ff6b6b; }
+    .score-display.winning { filter: drop-shadow(0 0 12px currentColor); }
+
+    .score-divider {
+      font-size: clamp(2rem, 8vw, 4rem);
+      font-weight: 300;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1;
+    }
+
+    /* +/- buttons */
+    .score-btns {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-score {
+      width: clamp(44px, 12vw, 60px);
+      height: clamp(44px, 12vw, 60px);
+      border-radius: 50%;
+      border: 2px solid;
+      font-size: clamp(1.2rem, 4vw, 1.8rem);
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-score:active { transform: scale(0.9); }
+
+    .btn-plus { background: var(--primary); border-color: var(--primary); color: white; }
+    .btn-plus:hover { background: var(--primary-dark); }
+    .btn-minus { background: transparent; border-color: var(--border); color: var(--text-muted); }
+    .btn-minus:hover { border-color: var(--text-muted); color: var(--text); }
+
+    /* service indicator */
+    .service-indicator {
+      height: 12px; width: 12px;
+      border-radius: 50%;
+      background: var(--orange);
+      box-shadow: 0 0 8px var(--orange);
+      transition: opacity 0.3s;
+      opacity: 0;
+    }
+    .service-indicator.active { opacity: 1; }
+
+    /* game point / match point banner */
+    .point-banner {
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin: 0 auto 8px;
+      display: inline-block;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .point-banner.show { opacity: 1; }
+    .point-banner.game-point { background: rgba(255,109,0,0.2); color: var(--orange); border: 1px solid var(--orange); }
+    .point-banner.match-point { background: rgba(0,200,83,0.2); color: var(--green); border: 1px solid var(--green); animation: pulse 1s infinite; }
+    .banner-wrap { text-align: center; min-height: 36px; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+    /* set history */
+    .set-history {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .set-result {
+      background: var(--card2);
+      border-radius: 8px;
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* action buttons */
+    .action-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .btn {
+      padding: 10px 22px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-reset { background: var(--card2); border: 1.5px solid var(--border); color: var(--text); }
+    .btn-reset:hover { border-color: var(--text-muted); }
+    .btn-next-set { background: var(--green); color: #000; }
+    .btn-next-set:hover { filter: brightness(0.9); }
+    .btn-swap { background: var(--card2); border: 1.5px solid var(--border); color: var(--text); }
+    .btn-swap:hover { border-color: var(--text-muted); }
+
+    /* ad side (desktop) */
+    .layout-wrapper {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .ad-side {
+      width: 160px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 16px;
+    }
+    .ad-side-inner {
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      min-height: 600px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      text-align: center;
+      padding: 8px;
+    }
+    .content-area { flex: 1; min-width: 0; }
+
+    @media (max-width: 700px) {
+      .ad-side { display: none; }
+    }
+
+    /* ===== DRAW TABLE PAGE ===== */
+    .draw-section {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+    .draw-section h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: var(--text);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .draw-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: flex-end;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 0.8rem; color: var(--text-muted); }
+    .form-group input, .form-group select {
+      background: var(--card2);
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      width: 120px;
+    }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-danger { background: var(--secondary); color: white; }
+    .btn-danger:hover { background: var(--secondary-dark); }
+
+    /* draw table */
+    .draw-table-wrap { overflow-x: auto; }
+    table.draw-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    table.draw-table th, table.draw-table td {
+      padding: 8px 12px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    table.draw-table th {
+      background: var(--card2);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+    table.draw-table tr:hover td { background: rgba(255,255,255,0.04); }
+    .rank-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      font-weight: 700; font-size: 0.85rem;
+    }
+    .rank-1 { background: gold; color: #000; }
+    .rank-2 { background: silver; color: #000; }
+    .rank-3 { background: #cd7f32; color: #fff; }
+
+    /* coin flip */
+    .coin-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+    }
+    .coin {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffd700, #ff8c00);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      box-shadow: 0 4px 20px rgba(255,165,0,0.4);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .coin:active { transform: scale(0.9); }
+    .coin.flipping {
+      animation: coinFlip 0.6s ease-in-out;
+    }
+    @keyframes coinFlip {
+      0%,100% { transform: rotateY(0); }
+      50% { transform: rotateY(720deg) scale(1.2); }
+    }
+    .coin-result {
+      font-size: 1.5rem;
+      font-weight: 700;
+      min-height: 2em;
+      text-align: center;
+    }
+    .coin-result.heads { color: var(--green); }
+    .coin-result.tails { color: var(--secondary); }
+
+    /* court draw */
+    .toggle-group {
+      display: flex;
+      gap: 0;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      width: fit-content;
+    }
+    .toggle-btn {
+      padding: 8px 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .toggle-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+    .toggle-btn + .toggle-btn {
+      border-left: 1.5px solid var(--border);
+    }
+
+    .count-selector {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .count-selector button {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      background: var(--card2);
+      color: var(--text);
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .count-selector button:hover { border-color: var(--primary); color: var(--primary); }
+    .count-selector .count-val {
+      font-size: 1.4rem;
+      font-weight: 700;
+      min-width: 2ch;
+      text-align: center;
+    }
+
+    .draw-settings {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .draw-settings .setting-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .draw-settings .setting-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    /* courts grid */
+    .courts-container {
+      display: grid;
+      gap: 14px;
+      margin-top: 4px;
+    }
+    .courts-container.cols-1 { grid-template-columns: 1fr; max-width: 360px; margin: 0 auto; }
+    .courts-container.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .courts-container.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .courts-container.cols-4 { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 600px) {
+      .courts-container.cols-3,
+      .courts-container.cols-4 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 400px) {
+      .courts-container { grid-template-columns: 1fr !important; }
+    }
+
+    .court-card {
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .court-card.filled { border-color: var(--primary); }
+    .court-card.leftover { border-color: var(--border); opacity: 0.5; }
+
+    .court-label {
+      background: var(--card2);
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      padding: 4px;
+      letter-spacing: 0.06em;
+    }
+    .court-label.filled { background: var(--primary); color: white; }
+
+    /* court inner: mimics a badminton court bird-eye view */
+    .court-inner {
+      position: relative;
+      padding: 10px 8px;
+      background: #1a3a2a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-height: 110px;
+    }
+    /* court lines */
+    .court-inner::before {
+      content: '';
+      position: absolute;
+      inset: 6px 14px;
+      border: 1.5px solid rgba(255,255,255,0.18);
+      border-radius: 2px;
+      pointer-events: none;
+    }
+    .court-inner::after {
+      content: '';
+      position: absolute;
+      left: 14px; right: 14px;
+      top: 50%;
+      height: 1.5px;
+      background: rgba(255,255,255,0.18);
+      pointer-events: none;
+    }
+
+    .court-team {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 1;
+    }
+    .court-net {
+      width: 80%;
+      height: 3px;
+      background: rgba(255,255,255,0.35);
+      border-radius: 2px;
+      position: relative;
+      z-index: 1;
+      margin: 2px 0;
+    }
+
+    .player-chip {
+      background: var(--primary);
+      color: white;
+      border-radius: 6px;
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      font-weight: 800;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      animation: popIn 0.25s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    .player-chip.side-b { background: var(--secondary); }
+    @keyframes popIn {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    .bench-section {
+      background: var(--card2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 12px;
+    }
+    .bench-section h4 {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .bench-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .bench-chip {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 6px;
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    /* match log */
+    .log-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .log-item {
+      background: var(--card2);
+      border-radius: 8px;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.88rem;
+      gap: 8px;
+    }
+    .log-score { font-weight: 700; font-size: 1rem; }
+    .log-time { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
+
+    /* toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 22px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      box-shadow: var(--shadow);
+      transition: transform 0.3s;
+      z-index: 1000;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 500;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 28px 24px;
+      width: min(440px, 94vw);
+      box-shadow: var(--shadow);
+      text-align: center;
+      transform: scale(0.9);
+      transition: transform 0.2s;
+    }
+    .modal-overlay.show .modal { transform: scale(1); }
+    .modal h2 { font-size: 1.5rem; margin-bottom: 8px; }
+    .modal .match-result { font-size: clamp(2rem, 8vw, 3rem); font-weight: 900; margin: 16px 0; }
+    .modal .winner-text { font-size: 1.1rem; color: var(--green); margin-bottom: 20px; }
+    .modal-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+    /* footer */
+    footer {
+      text-align: center;
+      padding: 16px;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      border-top: 1px solid var(--border);
+      margin-top: 24px;
+    }
+
+    /* tab bar for mobile */
+    .tab-bar {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      z-index: 100;
+    }
+    @media (max-width: 600px) {
+      .tab-bar { display: flex; }
+      nav { display: none; }
+      main { padding-bottom: 72px; }
+    }
+    .tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 4px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      gap: 2px;
+      transition: color 0.2s;
+      border: none; background: transparent;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-item .icon { font-size: 1.3rem; }
+    .tab-item.active { color: var(--primary); }
+
+    /* ad bottom (mobile) */
+    .ad-bottom {
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 6px;
+      min-height: 60px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    @media (min-width: 601px) { .ad-bottom { display: none; } }
+
+    /* responsive */
+    @media (max-width: 480px) {
+      .score-display { font-size: clamp(3.5rem, 22vw, 5.5rem); }
+      .btn-score { width: 52px; height: 52px; font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP AD -->
+<div class="ad-banner">
+  <!-- Google AdSense: replace this comment with your ad code -->
+  <!--
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX" crossorigin="anonymous"></script>
+  <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXX" data-ad-slot="XXXXXXXXXX" data-ad-format="auto" data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  -->
+  <div class="ad-placeholder">広告スペース (728×90)</div>
+</div>
+
+<header>
+  <h1><span>🏸</span> バドミントン スコアボード</h1>
+  <nav>
+    <button class="active" onclick="showPage('score', this)">スコア</button>
+    <button onclick="showPage('draw', this)">抽選</button>
+    <button onclick="showPage('log', this)">ログ</button>
+  </nav>
+</header>
+
+<main>
+  <div class="layout-wrapper">
+    <!-- SIDE AD (desktop) -->
+    <aside class="ad-side">
+      <div class="ad-side-inner">
+        <!-- Replace with AdSense vertical ad unit -->
+        広告<br>(160×600)
+      </div>
+    </aside>
+
+    <div class="content-area">
+
+      <!-- ==================== SCORE PAGE ==================== -->
+      <div id="page-score" class="page active">
+
+        <!-- game mode -->
+        <div class="game-info">
+          <label>
+            ゲーム形式:
+            <select id="gameMode" onchange="updateGameMode()">
+              <option value="1-15">1ゲームマッチ (15点)</option>
+              <option value="1">1ゲームマッチ (21点)</option>
+              <option value="3-15">3ゲームマッチ (15点)</option>
+              <option value="3" selected>3ゲームマッチ (21点)</option>
+            </select>
+          </label>
+          <label>
+            デュース:
+            <select id="deuceMode">
+              <option value="1" selected>あり</option>
+              <option value="0">なし</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- set indicator -->
+        <div class="sets-indicator" id="setsIndicator"></div>
+
+        <!-- SCOREBOARD -->
+        <div class="scoreboard">
+
+          <!-- team names -->
+          <div class="team-names">
+            <input class="team-name-input" id="nameA" type="text" value="チーム A" maxlength="20">
+            <span class="vs-text">vs</span>
+            <input class="team-name-input b" id="nameB" type="text" value="チーム B" maxlength="20">
+          </div>
+
+          <!-- service & score -->
+          <div class="score-row">
+            <div class="score-side">
+              <div class="service-indicator" id="svcA"></div>
+              <div class="score-display a" id="scoreA">0</div>
+              <div class="score-btns">
+                <button class="btn-score btn-minus" onclick="changeScore('a', -1)" title="−1">−</button>
+                <button class="btn-score btn-plus" onclick="changeScore('a', 1)" title="+1">＋</button>
+              </div>
+            </div>
+
+            <div class="score-divider">−</div>
+
+            <div class="score-side">
+              <div class="service-indicator" id="svcB"></div>
+              <div class="score-display b" id="scoreB">0</div>
+              <div class="score-btns">
+                <button class="btn-score btn-minus" onclick="changeScore('b', -1)" title="−1">−</button>
+                <button class="btn-score btn-plus" onclick="changeScore('b', 1)" title="+1">＋</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- game/match point banner -->
+          <div class="banner-wrap">
+            <span class="point-banner" id="pointBanner"></span>
+          </div>
+
+          <!-- set history -->
+          <div class="set-history" id="setHistory"></div>
+        </div>
+
+        <!-- action buttons -->
+        <div class="action-row">
+          <button class="btn btn-reset" onclick="confirmReset()">🔄 得点をリセット</button>
+          <button class="btn btn-swap" onclick="swapService()">🏸 サービス交代</button>
+          <button class="btn btn-next-set" id="btnNextSet" onclick="nextSet()" style="display:none">▶ 次のゲームへ</button>
+          <button class="btn btn-danger" onclick="confirmFullReset()" style="background:var(--card2);border:1.5px solid var(--border);">🗑 全リセット</button>
+        </div>
+
+      </div><!-- /score page -->
+
+      <!-- ==================== DRAW PAGE ==================== -->
+      <div id="page-draw" class="page">
+
+        <!-- COURT DRAW -->
+        <div class="draw-section">
+          <h2>🏸 コート割り当て</h2>
+
+          <div class="draw-settings">
+            <div class="setting-item">
+              <span class="setting-label">種目</span>
+              <div class="toggle-group">
+                <button class="toggle-btn active" id="btnSingles" onclick="setMode('singles')">シングルス</button>
+                <button class="toggle-btn" id="btnDoubles" onclick="setMode('doubles')">ダブルス</button>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <span class="setting-label">参加人数</span>
+              <div class="count-selector">
+                <button onclick="changeVal('players', -1)">−</button>
+                <span class="count-val" id="playerCount">8</span>
+                <button onclick="changeVal('players', 1)">＋</button>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <span class="setting-label">コート数 (最大8)</span>
+              <div class="count-selector">
+                <button onclick="changeVal('courts', -1)">−</button>
+                <span class="count-val" id="courtCount">2</span>
+                <button onclick="changeVal('courts', 1)">＋</button>
+              </div>
+            </div>
+
+            <div class="setting-item" style="align-self:flex-end;">
+              <button class="btn btn-primary" onclick="generateCourtDraw()" style="padding:10px 28px;font-size:1rem;">🎲 抽選する</button>
+            </div>
+          </div>
+
+          <div id="courtDrawResult"></div>
+        </div>
+
+        <!-- COIN FLIP -->
+        <div class="draw-section">
+          <h2>🪙 コイントス（サービス権）</h2>
+          <div class="coin-wrap">
+            <div class="coin" id="coin" onclick="flipCoin()">🪙</div>
+            <div class="coin-result" id="coinResult">コインをタップして投げる</div>
+          </div>
+        </div>
+
+      </div><!-- /draw page -->
+
+      <!-- ==================== LOG PAGE ==================== -->
+      <div id="page-log" class="page">
+        <div class="draw-section">
+          <h2>📋 試合ログ</h2>
+          <div class="action-row" style="margin-bottom:16px;">
+            <button class="btn btn-danger" onclick="clearLog()" style="background:var(--card2);border:1.5px solid var(--border);">ログを消去</button>
+          </div>
+          <ul class="log-list" id="logList">
+            <li style="color:var(--text-muted);text-align:center;padding:20px;">まだ記録がありません</li>
+          </ul>
+        </div>
+
+        <!-- ad in log page -->
+        <div style="text-align:center;padding:8px;">
+          <div class="ad-placeholder" style="max-width:468px;margin:0 auto;">広告スペース (468×60)</div>
+        </div>
+      </div>
+
+    </div><!-- /content-area -->
+  </div><!-- /layout-wrapper -->
+</main>
+
+<!-- BOTTOM AD (mobile) -->
+<div class="ad-bottom">
+  <div class="ad-placeholder">広告スペース (320×50)</div>
+</div>
+
+<!-- MOBILE TAB BAR -->
+<div class="tab-bar">
+  <button class="tab-item active" id="tab-score" onclick="showPage('score', null, 'tab-score')">
+    <span class="icon">📊</span>スコア
+  </button>
+  <button class="tab-item" id="tab-draw" onclick="showPage('draw', null, 'tab-draw')">
+    <span class="icon">🎲</span>抽選
+  </button>
+
+  <button class="tab-item" id="tab-log" onclick="showPage('log', null, 'tab-log')">
+    <span class="icon">📋</span>ログ
+  </button>
+</div>
+
+<!-- MATCH END MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div style="font-size:2rem">🏆</div>
+    <h2>試合終了！</h2>
+    <div class="match-result" id="modalResult">0−0</div>
+    <div class="winner-text" id="modalWinner"></div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" onclick="closeModal(); confirmFullReset()">新しい試合</button>
+      <button class="btn btn-reset" onclick="closeModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- BOTTOM AD (PC/tablet) -->
+<div class="ad-banner" style="border-top:1px solid var(--border);border-bottom:none;">
+  <!--
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX" crossorigin="anonymous"></script>
+  <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXX" data-ad-slot="XXXXXXXXXX" data-ad-format="auto" data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  -->
+  <div class="ad-placeholder">広告スペース (728×90)</div>
+</div>
+
+<footer>
+  © 2024 バドミントン スコアボード |
+  <a href="#" style="color:var(--text-muted);">お問い合わせ</a>
+</footer>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+let state = {
+  a: 0, b: 0,
+  setsWon: { a: 0, b: 0 },
+  sets: [],          // [{a, b}]
+  service: 'a',      // who serves
+  maxSets: 3,
+  pointsToWin: 21,
+  deuceEnabled: true,
+  matchOver: false
+};
+
+/* ============================================================
+   PAGE NAV
+   ============================================================ */
+function showPage(id, btn, tabId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+
+  // nav buttons (desktop)
+  if (btn) {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  // tab bar (mobile)
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  const tabEl = tabId ? document.getElementById(tabId) : document.getElementById('tab-' + id);
+  if (tabEl) tabEl.classList.add('active');
+}
+
+/* ============================================================
+   SCORE
+   ============================================================ */
+function updateGameMode() {
+  const v = document.getElementById('gameMode').value;
+  if (v === '1') { state.maxSets = 1; state.pointsToWin = 21; }
+  else if (v === '1-15') { state.maxSets = 1; state.pointsToWin = 15; }
+  else if (v === '3') { state.maxSets = 3; state.pointsToWin = 21; }
+  else if (v === '3-15') { state.maxSets = 3; state.pointsToWin = 15; }
+  state.deuceEnabled = document.getElementById('deuceMode').value === '1';
+  renderScore();
+}
+
+function changeScore(side, delta) {
+  if (state.matchOver) return;
+  state.deuceEnabled = document.getElementById('deuceMode').value === '1';
+
+  if (delta > 0) {
+    state[side]++;
+    // service: scorer gets serve
+    state.service = side;
+  } else {
+    state[side] = Math.max(0, state[side] - 1);
+  }
+
+  checkGameEnd();
+  renderScore();
+}
+
+function checkGameEnd() {
+  const ptw = state.pointsToWin;
+  const a = state.a, b = state.b;
+  const deuce = state.deuceEnabled;
+
+  let winner = null;
+  if (deuce) {
+    const deuceAt = ptw;
+    const maxPts = ptw + (ptw === 21 ? 9 : (ptw === 15 ? 5 : 0)); // 30 for 21, 20 for 15
+    if (a >= deuceAt && b >= deuceAt) {
+      // deuce
+      if (Math.abs(a - b) >= 2 || a >= maxPts || b >= maxPts) {
+        winner = a > b ? 'a' : 'b';
+      }
+    } else {
+      if (a >= ptw) winner = 'a';
+      else if (b >= ptw) winner = 'b';
+    }
+  } else {
+    if (a >= ptw) winner = 'a';
+    else if (b >= ptw) winner = 'b';
+  }
+
+  if (winner) {
+    state.setsWon[winner]++;
+    state.sets.push({ a: state.a, b: state.b });
+
+    const setsNeeded = Math.ceil(state.maxSets / 2);
+    if (state.setsWon[winner] >= setsNeeded) {
+      state.matchOver = true;
+      setTimeout(showMatchEndModal, 400);
+    } else {
+      document.getElementById('btnNextSet').style.display = '';
+    }
+    addLog(winner);
+  }
+}
+
+function renderScore() {
+  const el = {
+    a: document.getElementById('scoreA'),
+    b: document.getElementById('scoreB'),
+    svcA: document.getElementById('svcA'),
+    svcB: document.getElementById('svcB'),
+    banner: document.getElementById('pointBanner'),
+    nextSet: document.getElementById('btnNextSet'),
+  };
+
+  el.a.textContent = state.a;
+  el.b.textContent = state.b;
+
+  // service
+  el.svcA.classList.toggle('active', state.service === 'a');
+  el.svcB.classList.toggle('active', state.service === 'b');
+
+  // score bump animation
+  el.a.classList.remove('bump'); el.b.classList.remove('bump');
+  void el.a.offsetWidth;
+  void el.b.offsetWidth;
+
+  // winning glow
+  const ptw = state.pointsToWin;
+  el.a.classList.toggle('winning', state.a >= ptw - 2 && state.a > state.b);
+  el.b.classList.toggle('winning', state.b >= ptw - 2 && state.b > state.a);
+
+  // banner
+  const banner = calcBanner();
+  el.banner.textContent = banner.text;
+  el.banner.className = 'point-banner' + (banner.cls ? ' show ' + banner.cls : '');
+
+  // set history
+  renderSetHistory();
+  renderSetsIndicator();
+}
+
+function calcBanner() {
+  const a = state.a, b = state.b, ptw = state.pointsToWin;
+  const deuce = state.deuceEnabled;
+  const setsNeeded = Math.ceil(state.maxSets / 2);
+
+  for (const [side, opp, name] of [['a','b', document.getElementById('nameA').value], ['b','a', document.getElementById('nameB').value]]) {
+    const s = state[side], o = state[opp];
+    const atGame = deuce ? (s >= ptw - 1 && s >= o) : (s === ptw - 1);
+    const atMatch = atGame && (state.setsWon[side] === setsNeeded - 1);
+    if (atMatch) return { text: `🏆 ${name} マッチポイント！`, cls: 'match-point' };
+    if (atGame) return { text: `⚡ ${name} ゲームポイント`, cls: 'game-point' };
+  }
+  return { text: '', cls: '' };
+}
+
+function renderSetHistory() {
+  const el = document.getElementById('setHistory');
+  el.innerHTML = state.sets.map((s, i) =>
+    `<span class="set-result">第${i+1}G: ${s.a}−${s.b}</span>`
+  ).join('');
+}
+
+function renderSetsIndicator() {
+  const el = document.getElementById('setsIndicator');
+  if (state.maxSets === 1) { el.innerHTML = ''; return; }
+  let html = '';
+  for (let i = 0; i < state.maxSets; i++) {
+    const cls = i < state.sets.length
+      ? (state.sets[i].a > state.sets[i].b ? 'won-a' : 'won-b')
+      : (i === state.sets.length ? 'active' : '');
+    html += `<div class="set-dot ${cls}">${i+1}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+/* ============================================================
+   GAME CONTROLS
+   ============================================================ */
+function swapService() {
+  state.service = state.service === 'a' ? 'b' : 'a';
+  renderScore();
+  toast('サービス交代しました');
+}
+
+function nextSet() {
+  state.a = 0; state.b = 0;
+  // 3rd set: service by coin / odd-point rule (simplified: swap every set)
+  state.service = state.sets.length % 2 === 0 ? 'a' : 'b';
+  document.getElementById('btnNextSet').style.display = 'none';
+  renderScore();
+  toast(`第${state.sets.length + 1}ゲーム開始`);
+}
+
+function confirmReset() {
+  state.a = 0; state.b = 0;
+  renderScore();
+  toast('得点をリセットしました');
+}
+
+function confirmFullReset() {
+  state = {
+    a: 0, b: 0,
+    setsWon: { a: 0, b: 0 },
+    sets: [],
+    service: 'a',
+    maxSets: parseInt(document.getElementById('gameMode').value.split('-')[0]) || 3,
+    pointsToWin: document.getElementById('gameMode').value === '3-15' ? 15 : 21,
+    deuceEnabled: document.getElementById('deuceMode').value === '1',
+    matchOver: false
+  };
+  document.getElementById('btnNextSet').style.display = 'none';
+  renderScore();
+  toast('全スコアをリセットしました');
+}
+
+/* ============================================================
+   MATCH END MODAL
+   ============================================================ */
+function showMatchEndModal() {
+  const nameA = document.getElementById('nameA').value;
+  const nameB = document.getElementById('nameB').value;
+  const winner = state.setsWon.a > state.setsWon.b ? nameA : nameB;
+  document.getElementById('modalResult').textContent =
+    `${state.setsWon.a} − ${state.setsWon.b}`;
+  document.getElementById('modalWinner').textContent = `🎉 ${winner} の勝利！`;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+/* ============================================================
+   LOG
+   ============================================================ */
+let matchLog = [];
+
+function addLog(winner) {
+  const nameA = document.getElementById('nameA').value;
+  const nameB = document.getElementById('nameB').value;
+  const now = new Date();
+  matchLog.unshift({
+    a: state.a, b: state.b,
+    nameA, nameB, winner,
+    time: now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+    set: state.sets.length
+  });
+  renderLog();
+}
+
+function renderLog() {
+  const el = document.getElementById('logList');
+  if (!matchLog.length) {
+    el.innerHTML = '<li style="color:var(--text-muted);text-align:center;padding:20px;">まだ記録がありません</li>';
+    return;
+  }
+  el.innerHTML = matchLog.map(l =>
+    `<li class="log-item">
+      <span>第${l.set}G　<b>${l.nameA}</b> vs <b>${l.nameB}</b></span>
+      <span class="log-score ${l.winner === 'a' ? 'a' : 'b'}">${l.a}−${l.b}</span>
+      <span class="log-time">${l.time}</span>
+    </li>`
+  ).join('');
+}
+
+function clearLog() {
+  matchLog = [];
+  renderLog();
+  toast('ログを消去しました');
+}
+
+/* ============================================================
+   COIN FLIP
+   ============================================================ */
+function flipCoin() {
+  const coin = document.getElementById('coin');
+  const result = document.getElementById('coinResult');
+  coin.classList.remove('flipping');
+  void coin.offsetWidth;
+  coin.classList.add('flipping');
+  result.textContent = '...';
+  result.className = 'coin-result';
+
+  setTimeout(() => {
+    const heads = Math.random() < 0.5;
+    coin.textContent = heads ? '👑' : '🌑';
+    result.textContent = heads ? '表（オモテ）— サービス権獲得！' : '裏（ウラ）— コート選択権！';
+    result.className = 'coin-result ' + (heads ? 'heads' : 'tails');
+    setTimeout(() => { coin.textContent = '🪙'; }, 3000);
+  }, 650);
+}
+
+/* ============================================================
+   RANDOM DRAW
+   ============================================================ */
+function runDraw() {
+  const n = parseInt(document.getElementById('drawCount').value);
+  const mode = document.getElementById('drawMode').value;
+  if (!n || n < 2) { toast('2以上の数を入力してください'); return; }
+
+  const el = document.getElementById('drawResult');
+
+  if (mode === 'order') {
+    const arr = shuffle([...Array(n)].map((_, i) => i + 1));
+    el.innerHTML = `
+      <div class="draw-table-wrap">
+        <table class="draw-table">
+          <thead><tr><th>順番</th><th>プレイヤー番号</th></tr></thead>
+          <tbody>${arr.map((v, i) => `
+            <tr><td><span class="rank-badge ${i<3?'rank-'+(i+1):''}">${i+1}</span></td><td>${v}</td></tr>
+          `).join('')}</tbody>
+        </table>
+      </div>`;
+  } else if (mode === 'court') {
+    const arr = shuffle([...Array(n)].map((_, i) => i + 1));
+    const courts = [];
+    for (let i = 0; i < arr.length; i += 2) {
+      courts.push(arr.slice(i, i + 2));
+    }
+    el.innerHTML = `
+      <div class="draw-table-wrap">
+        <table class="draw-table">
+          <thead><tr><th>コート</th><th>プレイヤー</th></tr></thead>
+          <tbody>${courts.map((c, i) =>
+            `<tr><td>コート ${i+1}</td><td>${c.join(' / ')}</td></tr>`
+          ).join('')}</tbody>
+        </table>
+      </div>`;
+  } else if (mode === 'pair') {
+    const arr = shuffle([...Array(n)].map((_, i) => i + 1));
+    const pairs = [];
+    for (let i = 0; i < arr.length; i += 2) {
+      pairs.push(arr.slice(i, i + 2));
+    }
+    el.innerHTML = `
+      <div class="draw-table-wrap">
+        <table class="draw-table">
+          <thead><tr><th>ペア</th><th>組み合わせ</th></tr></thead>
+          <tbody>${pairs.map((p, i) =>
+            `<tr><td>${i+1}</td><td>${p.join(' ＆ ')}</td></tr>`
+          ).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/* ============================================================
+   COURT DRAW
+   ============================================================ */
+let drawState = { mode: 'singles', players: 8, courts: 2 };
+
+function setMode(m) {
+  drawState.mode = m;
+  document.getElementById('btnSingles').classList.toggle('active', m === 'singles');
+  document.getElementById('btnDoubles').classList.toggle('active', m === 'doubles');
+}
+
+function changeVal(key, delta) {
+  if (key === 'players') {
+    drawState.players = Math.max(2, Math.min(40, drawState.players + delta));
+    document.getElementById('playerCount').textContent = drawState.players;
+  } else {
+    drawState.courts = Math.max(1, Math.min(8, drawState.courts + delta));
+    document.getElementById('courtCount').textContent = drawState.courts;
+  }
+}
+
+function generateCourtDraw() {
+  const { mode, players, courts } = drawState;
+  const perCourt = mode === 'doubles' ? 4 : 2; // players per court
+  const canFit = courts * perCourt;
+
+  // shuffle all player numbers
+  const nums = shuffle([...Array(players)].map((_, i) => i + 1));
+
+  // assign to courts
+  const courtPlayers = [];
+  for (let c = 0; c < courts; c++) {
+    courtPlayers.push(nums.slice(c * perCourt, (c + 1) * perCourt));
+  }
+  const bench = nums.slice(canFit); // leftover
+
+  // grid columns
+  const cols = courts <= 1 ? 1 : courts <= 2 ? 2 : courts <= 4 ? 3 : 4;
+
+  // render
+  const el = document.getElementById('courtDrawResult');
+
+  let html = `<div class="courts-container cols-${cols}">`;
+  for (let c = 0; c < courts; c++) {
+    const ps = courtPlayers[c];
+    const filled = ps.length >= perCourt;
+    html += `
+      <div class="court-card ${filled ? 'filled' : 'leftover'}">
+        <div class="court-label ${filled ? 'filled' : ''}">コート ${c + 1}</div>
+        <div class="court-inner">`;
+
+    if (mode === 'doubles') {
+      // team A = first 2, team B = last 2
+      const teamA = ps.slice(0, 2);
+      const teamB = ps.slice(2, 4);
+      html += `<div class="court-team">`;
+      teamA.forEach((n, di) => {
+        html += `<div class="player-chip" style="animation-delay:${(c*4+di)*0.05}s">${n}</div>`;
+      });
+      html += `</div>`;
+      html += `<div class="court-net"></div>`;
+      html += `<div class="court-team">`;
+      teamB.forEach((n, di) => {
+        html += `<div class="player-chip side-b" style="animation-delay:${(c*4+di+2)*0.05}s">${n}</div>`;
+      });
+      html += `</div>`;
+    } else {
+      // singles: 1 vs 1
+      if (ps[0] != null) html += `<div class="court-team"><div class="player-chip" style="animation-delay:${c*0.07}s">${ps[0]}</div></div>`;
+      html += `<div class="court-net"></div>`;
+      if (ps[1] != null) html += `<div class="court-team"><div class="player-chip side-b" style="animation-delay:${(c+0.5)*0.07}s">${ps[1]}</div></div>`;
+    }
+
+    html += `</div></div>`;
+  }
+  html += `</div>`;
+
+  if (bench.length > 0) {
+    html += `<div class="bench-section">
+      <h4>⏳ 待機（${bench.length}人）</h4>
+      <div class="bench-chips">
+        ${bench.map(n => `<div class="bench-chip">${n}</div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+function toast(msg, duration = 2000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), duration);
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+renderScore();
+</script>
+</body>
+</html>
